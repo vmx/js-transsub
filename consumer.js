@@ -1,5 +1,7 @@
 'use strict'
 
+const pull = require('pull-stream')
+
 const helpers = require('./helpers.js')
 const Node = require('./libp2pnode.js')
 
@@ -22,7 +24,15 @@ const main = async (argv) => {
       if (err) {
         throw err
       }
-      console.log('dialed in', conn)
+      // console.log('dialed in', conn)
+      console.log('dialed in')
+      pull(
+        conn,
+        pull.map((data) => {
+          return data.toString('utf8')
+        }),
+        pull.drain(console.log)
+      )
     })
   })
 }
