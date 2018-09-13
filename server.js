@@ -3,16 +3,19 @@
 const promisify = require('util').promisify
 
 const async = require('async')
-const pull = require('pull-stream')
-const pushable = require('pull-pushable')
-
 const CID = require('cids')
 const IpfsBlockService = require('ipfs-block-service')
 const IpfsRepo = require('ipfs-repo')
 const Ipld = require('ipld')
+const protobuf = require('protons')
+const pull = require('pull-stream')
+const pushable = require('pull-pushable')
 
 const helpers = require('./helpers.js')
 const Node = require('./libp2pnode.js')
+
+const blockSchema = require('./block.proto.js')
+const Block = protobuf(blockSchema).Block
 
 const SERVER_PORT = 10333
 const IPFS_PATH = '/tmp/ipfsrepo'
@@ -185,10 +188,22 @@ const main = async (argv) => {
         maxDepth: 10000
       },
       ipld,
-      (nodes) => {
-        console.log('output:', nodes)
-        nodes.forEach((node) => {
-          pp.push(node)
+      (cids) => {
+        console.log('output:', cids)
+        cids.forEach((cid) => {
+          // TODO vmx 2018-09-13: Make access to BlockService a public API
+          const blockService = ipld.bs
+          blockService.get(new CID(cid), (err, block) => {
+            if (err) {
+              throw err
+            }
+            const encodedBlock = Block.encode({
+              cid,
+              data: block.data
+            })
+            console.log('pushing:', cid, encodedBlock.length)
+            pp.push(encodedBlock)
+          })
         })
       })
     })

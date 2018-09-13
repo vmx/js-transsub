@@ -31,8 +31,8 @@ class Node extends libp2p {
           new WS()                    // It can take instances too!
         ],
         streamMuxer: [
-          SPDY,
-          MPLEX
+          MPLEX,
+          SPDY
         ],
         connEncryption: [
           SECIO

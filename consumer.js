@@ -1,9 +1,14 @@
 'use strict'
 
+const CID = require('cids')
+const protobuf = require('protons')
 const pull = require('pull-stream')
 
 const helpers = require('./helpers.js')
 const Node = require('./libp2pnode.js')
+
+const blockSchema = require('./block.proto.js')
+const Block = protobuf(blockSchema).Block
 
 const CONSUMER_PORT = 10332
 const SERVER_PORT = 10333
@@ -29,7 +34,11 @@ const main = async (argv) => {
       pull(
         conn,
         pull.map((data) => {
-          return data.toString('utf8')
+          const block = Block.decode(data)
+          return {
+            cid: block.cid.toString(),
+            data: block.data
+          }
         }),
         pull.drain(console.log)
       )
