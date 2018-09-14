@@ -13,17 +13,19 @@ const helpers = require('./helpers.js')
 const IPFS_PATH = '/tmp/ipfsrepoclient'
 
 
-const readFile = promisify((file, done) => {
-  pull(
-    file.content,
-    pull.collect((err, data) => {
-      if (err) {
-        return done(err)
-      }
-      return done(null, Buffer.concat(data))
-    })
-  )
-})
+const readFile = (file) => {
+  return new Promise((resolve, reject) => {
+    pull(
+      file.content,
+      pull.collect((err, data) => {
+        if (err) {
+          return reject(err)
+        }
+        return resolve(Buffer.concat(data))
+      })
+    )
+  })
+}
 
 const main = async (argv) => {
   const ipld = await helpers.initIpld(IPFS_PATH)
