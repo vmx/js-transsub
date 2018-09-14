@@ -3,7 +3,9 @@
 const promisify = require('util').promisify
 
 const fs = require('fs-extra')
+const IpfsBlockService = require('ipfs-block-service')
 const IpfsRepo = require('ipfs-repo')
+const Ipld = require('ipld')
 const PeerId = require('peer-id')
 const PeerInfo = require('peer-info')
 
@@ -33,7 +35,15 @@ const initRepo = promisify((ipfsRepoPath, callback) => {
   })
 })
 
+const initIpld = async (ipfsRepoPath) => {
+  const repo = await initRepo(ipfsRepoPath)
+  const blockService = new IpfsBlockService(repo)
+  const ipld = new Ipld(blockService)
+  return ipld
+}
+
 module.exports = {
   createPeerInfo,
+  initIpld,
   initRepo
 }

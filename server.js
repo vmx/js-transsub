@@ -4,8 +4,6 @@ const promisify = require('util').promisify
 
 const async = require('async')
 const CID = require('cids')
-const IpfsBlockService = require('ipfs-block-service')
-const Ipld = require('ipld')
 const protobuf = require('protons')
 const pull = require('pull-stream')
 const pushable = require('pull-pushable')
@@ -112,15 +110,8 @@ const select = (selector, ipld, cb) => {
   )
 }
 
-const initIpld = async (ipfsRepoPath) => {
-  const repo = await helpers.initRepo(ipfsRepoPath)
-  const blockService = new IpfsBlockService(repo)
-  const ipld = new Ipld(blockService)
-  return ipld
-}
-
 const main = async (argv) => {
-  const ipld = await initIpld(IPFS_PATH)
+  const ipld = await helpers.initIpld(IPFS_PATH)
   const serverInfo = await helpers.createPeerInfo('./peerid-server.json',
     SERVER_PORT)
   const server = new Node({peerInfo: serverInfo})
