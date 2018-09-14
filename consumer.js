@@ -16,6 +16,11 @@ const SERVER_PORT = 10333
 const IPFS_PATH = '/tmp/ipfsrepoclient'
 
 const main = async (argv) => {
+  if (argv.length !== 3) {
+    console.log('usage: consumer.js <CID>')
+    process.exit(1)
+  }
+  const cid = argv[2]
   const repo = await helpers.initRepo(IPFS_PATH)
   const consumerInfo = await helpers.createPeerInfo('./peerid-consumer.json',
     CONSUMER_PORT)
@@ -32,7 +37,14 @@ const main = async (argv) => {
       if (err) {
         throw err
       }
-      // console.log('dialed in', conn)
+
+      console.log('the cid trying to be pushed:', cid)
+      // Push the CID to the server
+      pull(
+        pull.once(cid),
+        conn,
+      )
+
       console.log('dialed in')
       pull(
         conn,

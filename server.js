@@ -110,6 +110,39 @@ const select = (selector, ipld, cb) => {
   )
 }
 
+const processQuery = (path, ipld, pp) => {
+  select({
+    // The path to some value
+    path: path,
+    // If you want get a whole subtree, you can specifu which path to
+    // follow.
+    // If `follow` is an array, it expects all elements, except for the
+    // last one to be arrays. It will then loop through all elements of such
+    // an array and traverse them
+    follow: ['Links', 'multihash'],
+    maxDepth: 10000
+  },
+  ipld,
+  (cids) => {
+    console.log('output:', cids)
+    cids.forEach((cid) => {
+      // TODO vmx 2018-09-13: Make access to BlockService a public API
+      const blockService = ipld.bs
+      blockService.get(new CID(cid), (err, block) => {
+        if (err) {
+          throw err
+        }
+        const encodedBlock = Block.encode({
+          cid,
+          data: block.data
+        })
+        console.log('pushing:', cid, encodedBlock.length)
+        pp.push(encodedBlock)
+      })
+    })
+  })
+}
+
 const main = async (argv) => {
   const ipld = await helpers.initIpld(IPFS_PATH)
   const serverInfo = await helpers.createPeerInfo('./peerid-server.json',
@@ -122,69 +155,20 @@ const main = async (argv) => {
     console.log('started at', serverInfo.multiaddrs.toArray())
 
     server.handle('/graphsync/0.1.0', (protocol, conn) => {
-      // console.log('handling', protocol)
-
-      // TODO vmx 2018-09-12: Get the CID from the client
-      // ipld.get(new CID('zdpuAu31qcTb4of9J2yPSGf4ReJXCPVQCHL1b8MHP5P6W4E3P'), (err, result) => {
-      // ipld.get(new CID('QmfGBRT6BbWJd7yUc2uYdaUZJBbnEFvTqehPFoSMQ6wgdr'), (err, result) => {
-      //   if (err) {
-      //     throw err
-      //   }
-      //   console.log('got:', result.value)
-      // })
-
+      // This enables us to push data to the Consumer
       const pp = pushable()
       pull(
         pp,
         conn
       )
 
-      // let counter = 0
-      // setInterval(() => {
-      //   // Send numbers to the dialer
-      //   pp.push(counter + '')
-      //   counter++
-      // }, 1000)
-
-      select({
-        // The path to some value
-        // Root hash in website repo
-        //path: 'QmVCS2w81Maz8j5yDuSZtepvzJf6hqmpLYjkqsLyPPXM3H',
-        // Hash of larger file (1mb)
-        path: 'QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz',
-        // Hash of 10mb file
-        // path: 'QmeXydTRiAcyBAFo3DbWSeTdHXA8ZzjvLb2moowRYbGin9',
-        // Hash of 100mb file
-        //path: 'QmQQXP1Zwp696PwdFqd5fL8LwvVkdR1AJuatJgioj4X3pz',
-        // Root hash of the default initialized IPFS repo
-        // path: 'QmfGBRT6BbWJd7yUc2uYdaUZJBbnEFvTqehPFoSMQ6wgdr',
-        // If you want get a whole subtree, you can specifu which path to
-        // follow.
-        // If `follow` is an array, it expects all elements, except for the
-        // last one to be arrays. It will then loop through all elements of such
-        // an array and traverse them
-        follow: ['Links', 'multihash'],
-        maxDepth: 10000
-      },
-      ipld,
-      (cids) => {
-        console.log('output:', cids)
-        cids.forEach((cid) => {
-          // TODO vmx 2018-09-13: Make access to BlockService a public API
-          const blockService = ipld.bs
-          blockService.get(new CID(cid), (err, block) => {
-            if (err) {
-              throw err
-            }
-            const encodedBlock = Block.encode({
-              cid,
-              data: block.data
-            })
-            console.log('pushing:', cid, encodedBlock.length)
-            pp.push(encodedBlock)
-          })
+      // Get a CID from the Consumer
+      pull(
+        conn,
+        pull.drain((data) => {
+          processQuery(data.toString('utf-8'), ipld, pp)
         })
-      })
+      )
     })
   })
 }
