@@ -1,7 +1,5 @@
 'use strict'
 
-const promisify = require('util').promisify
-
 const CID = require('cids')
 const fs = require('fs-extra')
 const IpfsBlock = require('ipfs-block')
@@ -31,6 +29,13 @@ const readFile = async (file) => {
   return Buffer.concat(data)
 }
 
+const pullFiles = async (cid, ipld) => {
+  const files = await pullData(exporter(cid, ipld))
+  const result = await readFile(files[0])
+  await fs.outputFile('/tmp/out', result)
+  console.log(result.length)
+}
+
 const main = async (argv) => {
   if (argv.length !== 3) {
     console.log('usage: client.js <CID>')
@@ -38,17 +43,7 @@ const main = async (argv) => {
   }
   const cid = argv[2]
   const ipld = await helpers.initIpld(IPFS_PATH)
-  pull(
-    exporter(cid, ipld),
-    pull.collect(async (err, files) => {
-      if (err) {
-        throw err
-      }
-      const result = await readFile(files[0])
-      await fs.outputFile('/tmp/out', result)
-      console.log(result.length)
-    })
-  )
+  await pullFiles(cid, ipld)
 }
 
 main(process.argv).catch((error) => {
