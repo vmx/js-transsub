@@ -1,6 +1,7 @@
 'use strict'
 
 const CID = require('cids')
+const IpfsBlock = require('ipfs-block')
 const protobuf = require('protons')
 const pull = require('pull-stream')
 
@@ -12,8 +13,10 @@ const Block = protobuf(blockSchema).Block
 
 const CONSUMER_PORT = 10332
 const SERVER_PORT = 10333
+const IPFS_PATH = '/tmp/ipfsrepoclient'
 
 const main = async (argv) => {
+  const repo = await helpers.initRepo(IPFS_PATH)
   const consumerInfo = await helpers.createPeerInfo('./peerid-consumer.json',
     CONSUMER_PORT)
   const consumer = new Node({peerInfo: consumerInfo})
@@ -33,12 +36,16 @@ const main = async (argv) => {
       console.log('dialed in')
       pull(
         conn,
-        pull.map((data) => {
-          const block = Block.decode(data)
-          return {
-            cid: block.cid.toString(),
-            data: block.data
-          }
+        pull.asyncMap((data, cb) => {
+          const decodedBlock = Block.decode(data)
+          const block = new IpfsBlock(decodedBlock.data,
+            new CID(decodedBlock.cid.toString()))
+          repo.blocks.put(block, (err) => {
+            if (err) {
+              return cb(err)
+            }
+            return cb(null, block)
+          })
         }),
         pull.drain(console.log)
       )
