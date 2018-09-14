@@ -32,9 +32,14 @@ const readFile = async (file) => {
 }
 
 const main = async (argv) => {
+  if (argv.length !== 3) {
+    console.log('usage: client.js <CID>')
+    process.exit(1)
+  }
+  const cid = argv[2]
   const ipld = await helpers.initIpld(IPFS_PATH)
   pull(
-    exporter('QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz', ipld),
+    exporter(cid, ipld),
     pull.collect(async (err, files) => {
       if (err) {
         throw err
