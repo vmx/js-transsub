@@ -8,7 +8,7 @@ const exporter = require('ipfs-unixfs-engine').exporter
 
 const helpers = require('./helpers.js')
 
-const IPFS_PATH = '/tmp/ipfsrepoclient'
+const IPFS_PATH = '/tmp/transsubrepoclient'
 
 const pullData = (pullFrom) => {
   return new Promise((resolve, reject) => {
@@ -32,7 +32,7 @@ const readFile = async (file) => {
 const pullFiles = async (cid, ipld) => {
   const files = await pullData(exporter(cid, ipld))
   const result = await readFile(files[0])
-  await fs.outputFile('/tmp/out', result)
+  await fs.outputFile('/tmp/out.bin', result)
   console.log(result.length)
 }
 

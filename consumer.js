@@ -13,7 +13,7 @@ const Block = protobuf(blockSchema).Block
 
 const CONSUMER_PORT = 10332
 const SERVER_PORT = 10333
-const IPFS_PATH = '/tmp/ipfsrepoclient'
+const IPFS_PATH = '/tmp/transsubrepoclient'
 
 const main = async (argv) => {
   if (argv.length !== 3) {
@@ -33,7 +33,7 @@ const main = async (argv) => {
     const serverInfo = await helpers.createPeerInfo('./peerid-server.json',
       SERVER_PORT)
     console.log(serverInfo)
-    consumer.dialProtocol(serverInfo, '/graphsync/0.1.0', (err, conn) => {
+    consumer.dialProtocol(serverInfo, '/transsub/0.1.0', (err, conn) => {
       if (err) {
         throw err
       }

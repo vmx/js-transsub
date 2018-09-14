@@ -15,7 +15,7 @@ const blockSchema = require('./block.proto.js')
 const Block = protobuf(blockSchema).Block
 
 const SERVER_PORT = 10333
-const IPFS_PATH = '/tmp/ipfsreposerver'
+const IPFS_PATH = '/tmp/transsubreposerver'
 
 const select = (selector, ipld, cb) => {
   // Store nodes temporarily for easy traversal
@@ -154,7 +154,7 @@ const main = async (argv) => {
     }
     console.log('started at', serverInfo.multiaddrs.toArray())
 
-    server.handle('/graphsync/0.1.0', (protocol, conn) => {
+    server.handle('/transsub/0.1.0', (protocol, conn) => {
       // This enables us to push data to the Consumer
       const pp = pushable()
       pull(
