@@ -5,7 +5,6 @@ const promisify = require('util').promisify
 const async = require('async')
 const CID = require('cids')
 const IpfsBlockService = require('ipfs-block-service')
-const IpfsRepo = require('ipfs-repo')
 const Ipld = require('ipld')
 const protobuf = require('protons')
 const pull = require('pull-stream')
@@ -18,7 +17,7 @@ const blockSchema = require('./block.proto.js')
 const Block = protobuf(blockSchema).Block
 
 const SERVER_PORT = 10333
-const IPFS_PATH = '/tmp/ipfsrepo'
+const IPFS_PATH = '/tmp/ipfsreposerver'
 
 const select = (selector, ipld, cb) => {
   // Store nodes temporarily for easy traversal
@@ -113,23 +112,12 @@ const select = (selector, ipld, cb) => {
   )
 }
 
-
-const initIpld = promisify((ipfsRepoPath, callback) => {
-  const repo = new IpfsRepo(ipfsRepoPath)
-  repo.init({}, (err) => {
-    if (err) {
-      callback(err)
-    }
-    repo.open((err) => {
-      if (err) {
-        callback(err)
-      }
-      const blockService = new IpfsBlockService(repo)
-      const ipld = new Ipld(blockService)
-      callback(null, ipld)
-    })
-  })
-})
+const initIpld = async (ipfsRepoPath) => {
+  const repo = await helpers.initRepo(ipfsRepoPath)
+  const blockService = new IpfsBlockService(repo)
+  const ipld = new Ipld(blockService)
+  return ipld
+}
 
 const main = async (argv) => {
   const ipld = await initIpld(IPFS_PATH)
