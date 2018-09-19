@@ -10,6 +10,8 @@ const Node = require('./libp2pnode.js')
 
 const blockSchema = require('./block.proto.js')
 const Block = protobuf(blockSchema).Block
+const unixfsv1Schema = require('./unixfsv1.proto.js')
+const Unixfsv1 = protobuf(unixfsv1Schema).Unixfsv1
 
 const CONSUMER_PORT = 10332
 const SERVER_PORT = 10333
@@ -38,10 +40,15 @@ const main = async (argv) => {
         throw err
       }
 
+      const unixfsv1Encoded = Unixfsv1.encode({
+        cid: cid,
+        length: 600
+      })
+
       console.log('the cid trying to be pushed:', cid)
       // Push the CID to the server
       pull(
-        pull.once(cid),
+        pull.once(unixfsv1Encoded),
         conn,
       )
 

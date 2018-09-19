@@ -4,6 +4,9 @@ const promisify = require('util').promisify
 
 const async = require('async')
 const CID = require('cids')
+const exporter = require('ipfs-unixfs-engine').exporter
+const IpfsBlockService = require('ipfs-block-service')
+const Ipld = require('ipld')
 const protobuf = require('protons')
 const pull = require('pull-stream')
 const pushable = require('pull-pushable')
@@ -13,9 +16,80 @@ const Node = require('./libp2pnode.js')
 
 const blockSchema = require('./block.proto.js')
 const Block = protobuf(blockSchema).Block
+const unixfsv1Schema = require('./unixfsv1.proto.js')
+const Unixfsv1 = protobuf(unixfsv1Schema).Unixfsv1
 
 const SERVER_PORT = 10333
 const IPFS_PATH = '/tmp/transsubreposerver'
+
+// TranssubIpld works the same way as the normal IPLD, the only difference is
+// that it pushes each node that is visited into a user-supplied stream
+class TranssubIpld extends Ipld {
+  // Takes a pushable stream to send the blocks back to the requester
+  constructor(blockService, pushableStream) {
+    super(blockService)
+    this.pushableStream = pushableStream
+  }
+
+  get(cid, path, options, callback) {
+    if (typeof path === 'function') {
+      callback = path
+      path = undefined
+    }
+
+    if (typeof options === 'function') {
+      callback = options
+      options = {}
+    }
+
+    super.get(cid, path, options, (err, result) => {
+      if (err === null) {
+        const dagNode = result.value
+        const cid = new CID(dagNode.multihash).toBaseEncodedString()
+        const encodedBlock = Block.encode({
+          cid,
+          data: dagNode.data
+        })
+        console.log('pushing:', cid, encodedBlock.length)
+        this.pushableStream.push(encodedBlock)
+
+      }
+      callback(err, result)
+    })
+  }
+}
+
+
+const initBlockService = async (ipfsRepoPath) => {
+  const repo = await helpers.initRepo(ipfsRepoPath)
+  const blockService = new IpfsBlockService(repo)
+  return blockService
+}
+
+const pullData = (pullFrom) => {
+  return new Promise((resolve, reject) => {
+    pull(
+      pullFrom,
+      pull.collect((err, data) => {
+        if (err) {
+          return reject(err)
+        }
+        return resolve(data)
+      })
+    )
+  })
+}
+
+const processUnixfsv1Query = async (selector, blockService, pushableStream) => {
+  const ipld = new TranssubIpld(blockService, pushableStream)
+  const cid = selector.cid.toString()
+  console.log('call exporter with cid', cid)
+  const files = await pullData(
+    exporter(cid, ipld)
+  )
+  // Make sure the DAG is actually traversed
+  const data = await pullData(files[0].content)
+}
 
 const select = (selector, ipld, cb) => {
   // Store nodes temporarily for easy traversal
@@ -110,7 +184,9 @@ const select = (selector, ipld, cb) => {
   )
 }
 
-const processQuery = (path, ipld, pp) => {
+
+const processQuery = (selector, ipld, pp) => {
+  const path = selector.cid.toString('utf-8')
   select({
     // The path to some value
     path: path,
@@ -144,7 +220,7 @@ const processQuery = (path, ipld, pp) => {
 }
 
 const main = async (argv) => {
-  const ipld = await helpers.initIpld(IPFS_PATH)
+  const blockService = await initBlockService(IPFS_PATH)
   const serverInfo = await helpers.createPeerInfo('./peerid-server.json',
     SERVER_PORT)
   const server = new Node({peerInfo: serverInfo})
@@ -162,11 +238,13 @@ const main = async (argv) => {
         conn
       )
 
-      // Get a CID from the Consumer
+      // Get the Selector from the Consumer
       pull(
         conn,
         pull.drain((data) => {
-          processQuery(data.toString('utf-8'), ipld, pp)
+          // TODO vmx 2018-09-17: Don't hardcode to UnixFS v1
+          const selector = Unixfsv1.decode(data)
+          processUnixfsv1Query(selector, blockService, pp)
         })
       )
     })
