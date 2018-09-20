@@ -5,6 +5,8 @@ const promisify = require('util').promisify
 const async = require('async')
 const CID = require('cids')
 const exporter = require('ipfs-unixfs-engine').exporter
+// NOTE vmx 2018-09-19: This is a really ugly hack
+const IpfsFilesApi = require('ipfs/src/core/components/files.js')
 const IpfsBlockService = require('ipfs-block-service')
 const Ipld = require('ipld')
 const protobuf = require('protons')
@@ -80,15 +82,50 @@ const pullData = (pullFrom) => {
   })
 }
 
+// Fake IPFS instance for files API. It only contains what's needed to
+// make cat, get and ls calls
+class FakeIpfs {
+  constructor (ipld) {
+    this._ipld = ipld
+  }
+}
+
 const processUnixfsv1Query = async (selector, blockService, pushableStream) => {
   const ipld = new TranssubIpld(blockService, pushableStream)
-  const cid = selector.cid.toString()
-  console.log('call exporter with cid', cid)
-  const files = await pullData(
-    exporter(cid, ipld)
-  )
-  // Make sure the DAG is actually traversed
-  const data = await pullData(files[0].content)
+  const path = selector.path
+  const ipfs = new FakeIpfs(ipld)
+  const filesApi = IpfsFilesApi(ipfs)
+  switch(selector.operation) {
+    case Unixfsv1.Operation.CAT:
+      const options = {
+        preload: false,
+        length: selector.length === 0 ? undefined : selector.length,
+        offset: selector.offset
+      }
+      filesApi.cat(path, options, function (err, file) {
+        if (err !== null) {
+          throw err
+        }
+        pushableStream.end()
+      })
+      break
+    case Unixfsv1.Operation.GET:
+      filesApi.get(path, {preload: false}, function (err, file) {
+        if (err !== null) {
+          throw err
+        }
+      })
+      break
+    case Unixfsv1.Operation.LS:
+      filesApi.lsImmutable(path, {preload: false}, function (err, files) {
+        if (err !== null) {
+          throw err
+        }
+      })
+      break
+    default:
+      throw Error('Unsupported files API operation')
+  }
 }
 
 const select = (selector, ipld, cb) => {

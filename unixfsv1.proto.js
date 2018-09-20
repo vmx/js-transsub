@@ -7,7 +7,14 @@ module.exports = `
   syntax = "proto2";
 
   message Unixfsv1 {
-    required bytes cid = 1;
+    enum Operation {
+      CAT = 0;
+      GET = 1;
+      LS = 2;
+    }
+    required Operation operation = 4;
+    required string path = 1;
     optional uint64 length = 2;
+    optional uint64 offset = 3;
   }
 `

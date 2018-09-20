@@ -19,7 +19,7 @@ First create a 1MB file:
 
 Load this file into a JS-IPFS peer:
 
-    IPFS_PATH=/tmp/transsubreposerver jsipfs init --empty-repo
+    IPFS_PATH=/tmp/transsubreposerver jsipfs init
     IPFS_PATH=/tmp/transsubreposerver jsipfs add /tmp/1mb.bin
     added QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz 1mb.bin
 
@@ -27,9 +27,16 @@ Start the Server:
 
     node server.js
 
-On another terminal, run the Consumer and request the data that was inserted with its CID:
+On another terminal, you can run several command with the Consumer:
 
-    node consumer.js QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz
+    # Get all blocks needed to list a directory
+    node consumer.js ls QmfGBRT6BbWJd7yUc2uYdaUZJBbnEFvTqehPFoSMQ6wgdr
+
+    # Get all blocks from this specific file
+    node consumer.js get QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz
+
+    # Get all blocks needed to get from a 300000 offset 500 bytes
+    node consumer.js cat QmTaxZi1CXzyntZzXx8na6HV3LiZ4y2xNLpdkKwt99FkMz 300000 500
 
 You can abort the Consumer and run the client:
 

@@ -18,11 +18,19 @@ const SERVER_PORT = 10333
 const IPFS_PATH = '/tmp/transsubrepoclient'
 
 const main = async (argv) => {
-  if (argv.length !== 3) {
-    console.log('usage: consumer.js <CID>')
+  if (argv.length < 4) {
+    console.log('usage: consumer.js <operation: cat, get or ls> <CID>')
     process.exit(1)
   }
-  const cid = argv[2]
+  const operation = argv[2]
+  const cid = argv[3]
+  let length
+  let offset
+  if (operation === 'cat') {
+    const options = argv.slice(4)
+    ;[offset, length] = options
+  }
+
   const repo = await helpers.initRepo(IPFS_PATH)
   const consumerInfo = await helpers.createPeerInfo('./peerid-consumer.json',
     CONSUMER_PORT)
@@ -40,10 +48,31 @@ const main = async (argv) => {
         throw err
       }
 
-      const unixfsv1Encoded = Unixfsv1.encode({
-        cid: cid,
-        length: 600
-      })
+      let unixfsv1Encoded
+      switch(operation) {
+        case 'cat':
+          unixfsv1Encoded = Unixfsv1.encode({
+            operation: Unixfsv1.Operation.CAT,
+            path: cid,
+            length: length,
+            offset: offset
+          })
+          break
+        case 'get':
+          unixfsv1Encoded = Unixfsv1.encode({
+            operation: Unixfsv1.Operation.GET,
+            path: cid
+          })
+          break
+        case 'ls':
+          unixfsv1Encoded = Unixfsv1.encode({
+            operation: Unixfsv1.Operation.LS,
+            path: cid
+          })
+          break
+        default:
+          throw Error('Unsupported files API operation')
+      }
 
       console.log('the cid trying to be pushed:', cid)
       // Push the CID to the server
@@ -66,7 +95,9 @@ const main = async (argv) => {
             return cb(null, block)
           })
         }),
-        pull.drain(console.log)
+        pull.drain((data) => {
+          console.log(data)
+        })
       )
     })
   })
